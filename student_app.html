@@ -1,0 +1,68 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Student Records Management</title>
+<style>
+*{box-sizing:border-box}body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f3f5f9;color:#1f2937}
+header{background:#3b4cca;color:#fff;padding:16px 28px;font-size:20px;font-weight:600}
+main{max-width:1100px;margin:22px auto;padding:0 20px}
+.card{background:#fff;border-radius:10px;padding:18px;box-shadow:0 1px 4px #0002;margin-bottom:18px}
+h2{margin:0 0 12px;font-size:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+label{font-size:12px;display:block;margin-bottom:3px;color:#555}
+input,select{padding:8px 10px;border:1px solid #c5cad6;border-radius:6px;font-size:14px;min-width:170px}
+button{padding:9px 16px;border:0;border-radius:6px;background:#3b4cca;color:#fff;font-size:14px;cursor:pointer}
+button.gray{background:#6b7280}button.red{background:#d33}button.green{background:#198754}button.sm{padding:5px 10px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}th{background:#eef0fb;text-align:left;padding:9px;border-bottom:2px solid #d5d9f0}
+td{padding:9px;border-bottom:1px solid #e5e7eb}tr.inactive td{color:#9ca3af;background:#fafafa}
+.badge{padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600}.Active{background:#d1f2e0;color:#146c43}.Inactive{background:#fde0e0;color:#a52222}
+#msg{position:fixed;top:14px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-weight:600;display:none;z-index:9}
+#msg.ok{background:#198754}#msg.err{background:#d33}
+#modal{position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center}
+#modal .box{background:#fff;padding:26px;border-radius:10px;width:400px}
+</style></head><body>
+<header>🎓 Student Records Management System</header><div id="msg"></div>
+<main>
+<div class="card"><h2 id="formTitle">Add New Student</h2>
+<div class="row"><input type="hidden" id="editId">
+<div><label>Full Name</label><input id="name" placeholder="e.g. Riya Patel"></div>
+<div><label>Email</label><input id="email" placeholder="name@example.com"></div>
+<div><label>Course</label><select id="course"><option>B.Tech CSE</option><option>BCA</option><option>MCA</option><option>BBA</option></select></div>
+<div><label>Phone</label><input id="phone" placeholder="10-digit number"></div>
+<button id="saveBtn" onclick="save()">Add Student</button><button class="gray" onclick="resetForm()">Clear</button></div></div>
+<div class="card"><div class="row">
+<div><label>Search (name / email)</label><input id="search" placeholder="Search..." oninput="render()"></div>
+<div><label>Filter by Course</label><select id="filter" onchange="render()"><option value="">All Courses</option><option>B.Tech CSE</option><option>BCA</option><option>MCA</option><option>BBA</option></select></div>
+<button class="green" onclick="exportCSV()">⬇ Export CSV</button></div></div>
+<div class="card"><h2>Student Records (<span id="count"></span>)</h2>
+<table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Course</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
+</main>
+<div id="modal"><div class="box"><h2>Confirm Delete</h2><p id="cmsg"></p><div class="row"><button class="red" onclick="confirmDel()">Yes, Delete</button><button class="gray" onclick="closeM()">Cancel</button></div></div></div>
+<script>
+let students=[
+{id:101,name:"Aarav Shah",email:"aarav.shah@example.com",course:"B.Tech CSE",phone:"9876500011",status:"Active"},
+{id:102,name:"Diya Mehta",email:"diya.mehta@example.com",course:"BCA",phone:"9876500022",status:"Active"},
+{id:103,name:"Kabir Joshi",email:"kabir.joshi@example.com",course:"MCA",phone:"9876500033",status:"Active"},
+{id:104,name:"Isha Patel",email:"isha.patel@example.com",course:"BBA",phone:"9876500044",status:"Active"},
+{id:105,name:"Rohan Desai",email:"rohan.desai@example.com",course:"B.Tech CSE",phone:"9876500055",status:"Active"},
+{id:106,name:"Neha Trivedi",email:"neha.trivedi@example.com",course:"BCA",phone:"9876500066",status:"Active"}];
+let nextId=107,delId=null;const $=i=>document.getElementById(i);
+function toast(t,type){const m=$('msg');m.textContent=t;m.className=type;m.style.display='block';setTimeout(()=>m.style.display='none',6000)}
+function render(){const q=$('search').value.toLowerCase(),f=$('filter').value;
+const L=students.filter(s=>(!f||s.course===f)&&(!q||s.name.toLowerCase().includes(q)||s.email.toLowerCase().includes(q)));
+$('count').textContent=L.length;
+$('tb').innerHTML=L.length?L.map(s=>`<tr class="${s.status=='Inactive'?'inactive':''}"><td>${s.id}</td><td>${s.name}</td><td>${s.email}</td><td>${s.course}</td><td>${s.phone}</td><td><span class="badge ${s.status}">${s.status}</span></td><td><button class="sm" onclick="edit(${s.id})">Edit</button> ${s.status=='Active'?`<button class="sm red" onclick="askDel(${s.id})">Delete</button>`:''}</td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;padding:20px">No students found.</td></tr>'}
+function resetForm(){['editId','name','email','phone'].forEach(i=>$(i).value='');$('formTitle').textContent='Add New Student';$('saveBtn').textContent='Add Student'}
+function save(){const n=$('name').value.trim(),e=$('email').value.trim(),p=$('phone').value.trim(),c=$('course').value,id=$('editId').value;
+if(!n||!e||!p)return toast('Error: All fields are required.','err');
+if(!/^\S+@\S+\.\S+$/.test(e))return toast('Error: Please enter a valid email address.','err');
+if(!/^\d{10}$/.test(p))return toast('Error: Phone number must be exactly 10 digits.','err');
+if(students.some(s=>s.email.toLowerCase()===e.toLowerCase()&&String(s.id)!==id))return toast('Error: A student with this email already exists.','err');
+if(id){Object.assign(students.find(s=>s.id==id),{name:n,email:e,course:c,phone:p});toast('Success: Student details updated successfully.','ok')}
+else{students.push({id:nextId++,name:n,email:e,course:c,phone:p,status:'Active'});toast('Success: New student added successfully.','ok')}
+resetForm();render()}
+function edit(id){const s=students.find(x=>x.id==id);$('editId').value=id;$('name').value=s.name;$('email').value=s.email;$('course').value=s.course;$('phone').value=s.phone;$('formTitle').textContent='Update Student (ID '+id+')';$('saveBtn').textContent='Update Student';scrollTo(0,0)}
+function askDel(id){delId=id;const s=students.find(x=>x.id==id);$('cmsg').textContent=`Are you sure you want to delete "${s.name}"? The record will be marked Inactive (soft delete).`;$('modal').style.display='flex'}
+function closeM(){$('modal').style.display='none'}
+function confirmDel(){students.find(s=>s.id==delId).status='Inactive';closeM();toast('Success: Student deleted (status changed to Inactive).','ok');render()}
+function exportCSV(){const rows=[['ID','Name','Email','Course','Phone','Status'],...students.map(s=>[s.id,s.name,s.email,s.course,s.phone,s.status])];
+const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='students.csv';a.click();toast('Success: students.csv exported.','ok')}
+render();
+</script></body></html>
